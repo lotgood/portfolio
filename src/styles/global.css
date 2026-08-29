@@ -66,28 +66,35 @@ body {
   pointer-events: none;
 }
 
-.ambient__drift,
+.ambient__fallback,
+.ambient__canvas,
 .ambient__grain {
   position: absolute;
   inset: 0;
 }
 
-.ambient__field {
-  position: absolute;
-  inset: -30%;
-  will-change: transform, opacity;
+/* Shown before the GPU field starts, and as the final state when it never does. */
+.ambient__fallback {
+  background:
+    radial-gradient(34% 30% at 26% 24%, rgb(88 108 214 / 0.15), transparent 70%),
+    radial-gradient(30% 26% at 74% 62%, rgb(142 98 205 / 0.12), transparent 68%),
+    radial-gradient(32% 27% at 62% 18%, rgb(78 158 196 / 0.10), transparent 70%);
 }
 
-.ambient__field--a {
-  background:
-    radial-gradient(34% 30% at 26% 24%, rgb(88 108 214 / 0.17), transparent 70%),
-    radial-gradient(30% 26% at 74% 62%, rgb(142 98 205 / 0.13), transparent 68%);
+.ambient__canvas {
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  transition: opacity 1200ms ease;
 }
 
-.ambient__field--b {
-  background:
-    radial-gradient(32% 27% at 62% 18%, rgb(78 158 196 / 0.12), transparent 70%),
-    radial-gradient(28% 24% at 34% 82%, rgb(120 92 208 / 0.12), transparent 72%);
+.ambient[data-render-state='ready'] .ambient__canvas {
+  opacity: 1;
+}
+
+.ambient[data-render-state='ready'] .ambient__fallback {
+  opacity: 0;
+  transition: opacity 1200ms ease;
 }
 
 .ambient__grain {
@@ -95,60 +102,26 @@ body {
   background-image: var(--grain);
 }
 
-@supports (color: color(display-p3 1 1 1)) {
-  .ambient__field--a {
-    background:
-      radial-gradient(34% 30% at 26% 24%, color(display-p3 0.34 0.42 0.86 / 0.19), transparent 70%),
-      radial-gradient(30% 26% at 74% 62%, color(display-p3 0.55 0.38 0.82 / 0.15), transparent 68%);
-  }
-
-  .ambient__field--b {
-    background:
-      radial-gradient(32% 27% at 62% 18%, color(display-p3 0.3 0.62 0.78 / 0.14), transparent 70%),
-      radial-gradient(28% 24% at 34% 82%, color(display-p3 0.47 0.36 0.83 / 0.14), transparent 72%);
-  }
-}
-
 /*
- * Continuous counter-motion: two fields on different long periods cross and
- * separate, so the wash keeps morphing instead of sitting still. Transform and
- * opacity only, so it stays on the compositor.
+ * The GPU field is brighter than the CSS fallback, and on an HDR display its
+ * cores are brighter than white text. Lift secondary copy while the field is
+ * live rather than dimming the field into nothing.
  */
-.ambient__field--a {
-  animation: ambient-a 46s ease-in-out infinite alternate;
+body:has(.ambient[data-render-state='ready']) {
+  --muted: #9ba0ac;
 }
 
-.ambient__field--b {
-  animation: ambient-b 67s ease-in-out infinite alternate;
+body:has(.ambient[data-render-state='ready']) .section p,
+body:has(.ambient[data-render-state='ready']) .case-body p {
+  text-shadow: 0 1px 12px rgb(4 5 8 / 0.55);
 }
 
-@keyframes ambient-a {
-  from {
-    transform: translate3d(-4%, -3%, 0) scale(1.02);
-    opacity: 0.85;
-  }
-  50% {
-    transform: translate3d(5%, 4%, 0) scale(1.16);
-    opacity: 1;
-  }
-  to {
-    transform: translate3d(-2%, 6%, 0) scale(1.06);
-    opacity: 0.8;
-  }
-}
-
-@keyframes ambient-b {
-  from {
-    transform: translate3d(4%, 5%, 0) scale(1.1);
-    opacity: 0.65;
-  }
-  50% {
-    transform: translate3d(-5%, -4%, 0) scale(1);
-    opacity: 1;
-  }
-  to {
-    transform: translate3d(3%, -6%, 0) scale(1.12);
-    opacity: 0.7;
+@supports (color: color(display-p3 1 1 1)) {
+  .ambient__fallback {
+    background:
+      radial-gradient(34% 30% at 26% 24%, color(display-p3 0.34 0.42 0.86 / 0.17), transparent 70%),
+      radial-gradient(30% 26% at 74% 62%, color(display-p3 0.55 0.38 0.82 / 0.14), transparent 68%),
+      radial-gradient(32% 27% at 62% 18%, color(display-p3 0.3 0.62 0.78 / 0.12), transparent 70%);
   }
 }
 
@@ -1042,15 +1015,17 @@ h3 {
     display: none;
   }
 
-  .ambient__drift,
-  .ambient__field,
+  .ambient__canvas {
+    display: none;
+  }
+
+  .ambient__fallback,
   .section::before {
     animation: none !important;
     animation-timeline: none !important;
   }
 
-  .ambient__drift,
-  .ambient__field {
+  .ambient__fallback {
     transform: none !important;
     opacity: 1;
   }
@@ -1147,8 +1122,8 @@ h3 {
 }
 
 @supports (animation-timeline: scroll()) {
-  /* Scroll parallax, layered on top of the fields' own continuous motion. */
-  .ambient__drift {
+  /* Parallax for the CSS fallback only; the GPU field reads scroll as a uniform. */
+  .ambient:not([data-render-state='ready']) .ambient__fallback {
     animation: ambient-drift linear both;
     animation-timeline: scroll(root block);
   }

@@ -7,15 +7,21 @@ Astro static HTML + native CSS
              │
              ├─ always visible CSS fallback
              │
-             └─ idle bootstrap
+             └─ idle bootstrap (layout level, so every page participates)
                     │ capability / preference checks
                     ▼
               dynamic import
                     ▼
-             vgpu + WGSL hero
+            one vgpu device + one frame loop
+                    ├─ hero surface     (src/shaders/hero.wgsl)
+                    └─ ambient surface  (src/shaders/ambient.wgsl)
 ```
 
-The GPU renderer is deliberately isolated in `src/gpu/hero-runtime.ts`. Components and content do not import vgpu.
+The GPU renderer is deliberately isolated in `src/gpu/visuals-runtime.ts`. Components and content do not import vgpu.
+
+Both surfaces share one device and one frame loop, so the second surface costs a draw call rather than a second renderer. The hero draws only while it intersects the viewport. The ambient field runs at half detail while the hero is on screen, and renders below native resolution (roughly 0.6x the hero's DPR) because a volumetric march is fill-rate bound and the result has no hard edges to lose.
+
+The hero's visual is masked to fade out at its bottom edge so the ambient field bleeds through from inside it. Without that, the point where the field appears reads as a horizontal rule.
 
 ## Progressive-enhancement matrix
 
@@ -26,7 +32,8 @@ The GPU renderer is deliberately isolated in `src/gpu/hero-runtime.ts`. Componen
 | Data Saver enabled | CSS fallback only |
 | Reduced motion enabled | CSS fallback only |
 | No WebGPU / initialization error | CSS fallback only |
-| Background tab or hero offscreen | Render loop stopped |
+| Background tab | Render loop stopped |
+| Hero offscreen | Hero surface skipped; ambient field continues |
 
 Capability heuristics only choose a safe starting profile. A small frame-time controller may reduce shader layers, but it never raises quality above the initial profile.
 

@@ -13,34 +13,46 @@ type IdleWindow = Window & {
   ) => number;
 };
 
-export function bootHero() {
-  const root = document.querySelector<HTMLElement>('[data-hero]');
-  const canvas = document.querySelector<HTMLCanvasElement>('[data-hero-canvas]');
+/**
+ * Boots every GPU surface on the page: the hero (when the page has one) and the
+ * document-level ambient field. Runs from the layout so project pages get the
+ * ambient field too. Everything stays static-first: the page is complete before
+ * this runs, and any opt-out or failure leaves the CSS presentation in place.
+ */
+export function bootVisuals() {
+  const heroRoot = document.querySelector<HTMLElement>('[data-hero]');
+  const heroCanvas = document.querySelector<HTMLCanvasElement>('[data-hero-canvas]');
+  const ambientCanvas = document.querySelector<HTMLCanvasElement>('[data-ambient-canvas]');
   const status = document.querySelector<HTMLElement>('[data-gpu-status]');
+  const ambientRoot = ambientCanvas?.closest<HTMLElement>('[data-ambient]') ?? null;
 
-  if (!root || !canvas) return;
+  if (!heroCanvas && !ambientCanvas) return;
 
   const setStatus = (text: string) => {
     if (status) status.textContent = text;
+  };
+  const setState = (state: string) => {
+    if (heroRoot) heroRoot.dataset.renderState = state;
+    if (ambientRoot) ambientRoot.dataset.renderState = state;
   };
 
   const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const saveData = (navigator as NavigatorHints).connection?.saveData === true;
 
   if (reducedMotion) {
-    root.dataset.renderState = 'reduced-motion';
+    setState('reduced-motion');
     setStatus('Reduced motion · static');
     return;
   }
 
   if (saveData) {
-    root.dataset.renderState = 'data-saver';
+    setState('data-saver');
     setStatus('Data saver · static');
     return;
   }
 
   if (!('gpu' in navigator)) {
-    root.dataset.renderState = 'unsupported';
+    setState('unsupported');
     setStatus('CSS fallback');
     return;
   }
@@ -53,12 +65,15 @@ export function bootHero() {
     if (disposed || starting || disposeRenderer) return;
 
     starting = true;
-    root.dataset.renderState = 'loading';
+    setState('loading');
     setStatus('Starting WebGPU');
 
     try {
-      const { mountHero } = await import('./hero-runtime');
-      const renderer = await mountHero(canvas, root);
+      const { mountVisuals } = await import('./visuals-runtime');
+      const renderer = await mountVisuals({
+        ...(heroRoot && heroCanvas ? { hero: { canvas: heroCanvas, root: heroRoot } } : {}),
+        ...(ambientCanvas ? { ambient: { canvas: ambientCanvas } } : {})
+      });
 
       if (disposed) {
         renderer.dispose();
@@ -66,12 +81,12 @@ export function bootHero() {
       }
 
       disposeRenderer = renderer.dispose;
-      root.dataset.renderState = 'ready';
+      setState('ready');
       setStatus(`WebGPU · ${renderer.profile}`);
 
       if (import.meta.env.DEV && new URLSearchParams(location.search).has('hdrcheck')) {
         // Dev-only XDR acceptance aid: a reference-white (#FFFFFF) swatch to compare
-        // against hero highlights. Stripped from production builds by the DEV guard.
+        // against highlights. Stripped from production builds by the DEV guard.
         const swatch = document.createElement('div');
         swatch.style.cssText =
           'position:fixed;right:16px;bottom:16px;z-index:99;width:160px;height:90px;' +
@@ -81,8 +96,8 @@ export function bootHero() {
         document.body.append(swatch);
       }
     } catch (error) {
-      console.warn('WebGPU hero unavailable; retaining CSS fallback.', error);
-      root.dataset.renderState = 'failed';
+      console.warn('WebGPU unavailable; retaining CSS presentation.', error);
+      setState('failed');
       setStatus('CSS fallback');
     } finally {
       starting = false;
@@ -108,7 +123,7 @@ export function bootHero() {
     if (!event.persisted) return;
 
     disposed = false;
-    root.dataset.renderState = 'fallback';
+    setState('fallback');
     setStatus('Static first');
     scheduleStart();
   });

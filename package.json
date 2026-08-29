@@ -10,7 +10,7 @@
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
-    "check": "astro check && vgpu check src/shaders/hero.wgsl",
+    "check": "astro check && vgpu check src/shaders/hero.wgsl && vgpu check src/shaders/ambient.wgsl",
     "budget": "node scripts/check-budgets.mjs",
     "validate": "pnpm run check && pnpm run build && pnpm run budget",
     "gpu:doctor": "vgpu doctor --pretty"

@@ -7,7 +7,7 @@ A compact personal portfolio that feels premium immediately, remains readable an
 ## Experience principles
 
 1. **Content wins.** Name, selected work, role, and contact path are available in the first HTML response.
-2. **One memorable effect.** GPU work is limited to the opening hero until a later feature proves its value.
+2. **Two surfaces, one device.** The hero is the opening statement; a quieter document-level ambient field carries the rest of the page. Both run on a single `Gpu` and a single frame loop, and nothing else may claim GPU time without proving its value.
 3. **Quiet interaction.** Pointer and scroll influence the visual slightly; they never become required controls.
 4. **Graceful degradation.** No WebGPU, reduced motion, data saving, tab backgrounding, and low capability all remain first-class states.
 5. **No dependency theatre.** Prefer native browser features and delete libraries that duplicate them.
@@ -19,7 +19,8 @@ A compact personal portfolio that feels premium immediately, remains readable an
 - Native cross-document View Transitions where supported
 - CSS gradient fallback that is visually complete before the GPU starts
 - Lazy WebGPU hero with pointer/scroll response and conservative quality profiles
-- True extended-range HDR hero output on Chromium + HDR displays (capability-gated, with SDR tone-map and CSS fallbacks elsewhere)
+- Document-level ambient field of sparse specular glints, shown on every page
+- True extended-range HDR output on Chromium + HDR displays (capability-gated, with SDR tone-map and CSS fallbacks elsewhere)
 - Semantic structure, keyboard focus, skip navigation, and reduced-motion behavior
 - Build, type, shader, and bundle-budget validation
 

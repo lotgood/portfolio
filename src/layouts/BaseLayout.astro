@@ -34,13 +34,16 @@ const canonical = Astro.site ? new URL(Astro.url.pathname, Astro.site) : undefin
   </head>
   <body>
     <a class="skip-link" href="#main-content">Skip to content</a>
-    <div class="ambient" aria-hidden="true">
-      <div class="ambient__drift">
-        <div class="ambient__field ambient__field--a"></div>
-        <div class="ambient__field ambient__field--b"></div>
-      </div>
+    <div class="ambient" data-ambient data-render-state="fallback" aria-hidden="true">
+      <div class="ambient__fallback"></div>
+      <canvas class="ambient__canvas" data-ambient-canvas tabindex="-1"></canvas>
       <div class="ambient__grain"></div>
     </div>
     <slot />
+
+    <script>
+      import { bootVisuals } from '../gpu/visuals-bootstrap';
+      bootVisuals();
+    </script>
   </body>
 </html>
