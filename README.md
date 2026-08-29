@@ -1,4 +1,4 @@
-# Hyungho WebGPU Portfolio
+# lotgood — WebGPU Portfolio
 
 A static-first personal portfolio scaffold built for three priorities:
 

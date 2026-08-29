@@ -19,7 +19,7 @@ const { project } = Astro.props;
 const transitionName = `project-${project.slug}`;
 ---
 
-<BaseLayout title={`${project.title} — Hyungho Lee`} description={project.summary}>
+<BaseLayout title={`${project.title} — lotgood`} description={project.summary}>
   <SiteHeader />
 
   <main id="main-content" class="case-study">
@@ -46,8 +46,13 @@ const transitionName = `project-${project.slug}`;
 
       <div class="case-body__columns">
         <section aria-labelledby="story-title">
-          <h2 id="story-title">What belongs here</h2>
+          <h2 id="story-title">Inside the system</h2>
           {project.details.map((paragraph) => <p>{paragraph}</p>)}
+          {project.liveUrl && (
+            <a class="case-live-link" href={project.liveUrl} rel="noopener">
+              <span>Open the live app</span><span aria-hidden="true">↗</span>
+            </a>
+          )}
         </section>
 
         <aside aria-labelledby="role-title">
@@ -61,6 +66,17 @@ const transitionName = `project-${project.slug}`;
           </ul>
         </aside>
       </div>
+
+      {project.images && project.images.length > 0 && (
+        <section class="case-media" aria-label="Screenshots">
+          {project.images.map((image) => (
+            <figure>
+              <img src={image.src} alt={image.alt} loading="lazy" decoding="async" />
+              {image.caption && <figcaption>{image.caption}</figcaption>}
+            </figure>
+          ))}
+        </section>
+      )}
 
       <a class="next-project" href="/#work">
         <span>Back to all work</span><span aria-hidden="true">↗</span>

@@ -695,6 +695,48 @@ h3 {
   text-align: center;
 }
 
+.case-live-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 8px;
+  padding: 12px 22px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--text);
+  font-size: 0.9rem;
+  font-weight: 600;
+  transition: border-color 180ms ease, background 180ms ease;
+}
+
+.case-live-link:hover {
+  border-color: color-mix(in srgb, var(--project-accent, #7aa7d8) 60%, transparent);
+  background: rgb(255 255 255 / 0.04);
+}
+
+.case-media {
+  display: grid;
+  gap: clamp(28px, 5vw, 56px);
+  margin-block: clamp(60px, 9vw, 110px);
+}
+
+.case-media figure {
+  margin: 0;
+}
+
+.case-media img {
+  width: 100%;
+  border-radius: var(--radius, 14px);
+  border: 1px solid var(--line);
+}
+
+.case-media figcaption {
+  margin-top: 14px;
+  color: var(--muted);
+  font-size: 0.8rem;
+  letter-spacing: 0.02em;
+}
+
 .next-project {
   display: flex;
   justify-content: space-between;
