@@ -33,6 +33,23 @@ fn hash21(p: vec2f) -> f32 {
   return fract(sin(h) * 43758.5453123);
 }
 
+// Restricted three-stop ramp: teal, indigo, warm amber. A full cosine hue wheel
+// covers the whole spectrum and turns the field into a rainbow wash; three stops
+// give variety while staying inside the site's palette.
+fn ramp(h: f32) -> vec3f {
+  let teal = vec3f(0.16, 0.52, 0.68);
+  let indigo = vec3f(0.40, 0.34, 0.80);
+  let amber = vec3f(0.85, 0.58, 0.32);
+
+  let x = fract(h) * 3.0;
+  let w_teal = max(0.0, 1.0 - min(abs(x - 0.0), abs(x - 3.0)));
+  let w_indigo = max(0.0, 1.0 - abs(x - 1.0));
+  let w_amber = max(0.0, 1.0 - abs(x - 2.0));
+  let total = max(w_teal + w_indigo + w_amber, 0.0001);
+
+  return (teal * w_teal + indigo * w_indigo + amber * w_amber) / total;
+}
+
 // Identity at or below reference white, soft knee above it toward `limit`.
 fn hdr_extend(color: vec3f, limit: f32) -> vec3f {
   let excess = max(color - vec3f(1.0), vec3f(0.0));
@@ -60,11 +77,19 @@ fn fs_main(@location(0) uv: vec2f) -> @location(0) vec4f {
   var direction = normalize(vec3f(screen * 1.15, 1.0));
   direction = normalize(direction + vec3f(pointer * 0.22, 0.0));
 
+
+
   // Per-pixel jitter on the march start. Without it, a 16-step march quantises
   // into visible shells that crawl across the screen as the field moves.
   let jitter = hash21(floor(uv * ambient.viewport) + floor(ambient.time * 60.0) * 0.017);
-  var z = 0.55 + jitter * 0.12;
-  var accumulated = vec3f(0.0);
+  var z = 0.55 + jitter * 0.045;
+  // Brightness and colour are accumulated separately. Accumulating tinted light
+  // directly averages hue along the ray, so every pixel converges on the palette's
+  // base colour and one hue ends up owning every highlight. Instead the march
+  // sums density, and carries an intensity-weighted hue coordinate that stays
+  // smooth across neighbouring pixels.
+  var density = 0.0;
+  var hue_weighted = 0.0;
 
   for (var i = 0; i < 16; i += 1) {
     if (i >= steps) {
@@ -87,15 +112,18 @@ fn fs_main(@location(0) uv: vec2f) -> @location(0) vec4f {
     let sheet = (abs(length(p.xy) - 1.15) + 0.05) / 6.0;
     z += sheet;
 
-    // Iridescence: hue advances with depth and with the turbulence itself, so
-    // neighbouring filaments separate into cyan, violet and warm gold instead of
-    // one flat blue. The base stays cool; the accents ride on the hot cores.
-    let hue = z * 1.15 + p.z * 0.12 + t * 0.35;
-    let tint = vec3f(0.30, 0.36, 0.56) + vec3f(0.32, 0.20, 0.26) * cos(vec3f(0.0, 2.1, 4.2) + hue);
-    accumulated += tint / sheet;
+    // Brightness is relative to each filament's own core, not to the screen: the
+    // falloff is sharpened so a strand is dark at its edges and climbs steeply
+    // toward its centre. Crossings then add core to core and pull far ahead.
+    let contribution = pow(1.0 / sheet, 1.45);
+    density += contribution;
+    // Low-frequency hue coordinate: depth plus the folded position, kept slow so
+    // neighbouring pixels stay in the same colour family instead of speckling.
+    hue_weighted += contribution * (z * 0.13 + p.z * 0.03);
   }
 
-  var energy = accumulated * 0.0060;
+  let hue = (hue_weighted / max(density, 0.0001)) * 2.4 + screen.x * 0.78 + screen.y * 0.30 + t * 0.06;
+  var energy = ramp(hue) * density * 0.0010;
   energy *= 1.0 + pointer_falloff * 1.35;
 
   // Body copy sits in the centred content column, so damp the field there. This
@@ -106,8 +134,11 @@ fn fs_main(@location(0) uv: vec2f) -> @location(0) vec4f {
   let column = 1.0 - 0.80 * (1.0 - smoothstep(0.10, 1.05, abs(screen.x)));
   energy *= mix(0.42, 1.0, column);
 
-  let vignette = smoothstep(1.08, 0.22, length(screen * vec2f(0.82, 1.0)));
-  energy *= 0.26 + vignette * 0.62;
+  // Only a gentle frame vignette. Pooling brightness at the screen centre put the
+  // hottest part of the field directly behind the headline; the dark-to-bright
+  // gradient belongs to each filament instead.
+  let vignette = smoothstep(1.25, 0.35, length(screen * vec2f(0.85, 1.0)));
+  energy *= 0.55 + vignette * 0.55;
 
   // `base` is what an SDR display can show, deliberately tone mapped well down so
   // the field stays a background. `spill` is the range that compression discards,
@@ -116,7 +147,23 @@ fn fs_main(@location(0) uv: vec2f) -> @location(0) vec4f {
   // Rarer but hotter cores: a wide band sitting just over white washes out body
   // copy, while a small number of genuinely bright cores reads as HDR.
   let base = tanh(energy * 0.033);
-  let spill = max(energy - 3.2, vec3f(0.0)) * 1.9;
+
+  // Overbright is measured on luminance, not per channel, then re-tinted with the
+  // local colour. Thresholding each channel separately would let whichever
+  // channel is strongest spill alone, turning every highlight the same hue.
+  // Threshold on the strongest channel, which is hue-neutral, then re-tint with
+  // the pixel's own colour.
+  //
+  // Thresholding on luminance looks natural but weights green at 0.72, so
+  // green-leaning pixels cross first and every core comes out green. Thresholding
+  // per channel has the mirror problem: whichever channel the palette favours
+  // spills alone. Only a hue-neutral magnitude keeps colour out of the decision.
+  let peak = max(max(energy.r, energy.g), max(energy.b, 0.0001));
+  // Mildly superlinear, so crossings pull ahead of single passes without running
+  // away. A steep exponent amplifies the march's dither into visible speckle,
+  // because the noise is multiplied along with the signal.
+  let overlap = pow(peak, 1.25);
+  let spill = (energy / peak) * max(overlap - 7.0, 0.0) * 1.5;
 
   let pixel = floor(uv * ambient.viewport);
   let grain = hash21(pixel + floor(ambient.time * 20.0)) - 0.5;
