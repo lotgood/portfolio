@@ -31,7 +31,7 @@ type ToneMappedCanvasContext = GPUCanvasContext & {
 };
 
 /** Soft ceiling for extended-range highlights, in multiples of SDR reference white. */
-const HDR_HEADROOM = 3.0;
+const HDR_HEADROOM = 6.0;
 
 function canvasTextureUsage(): number | undefined {
   const usage = globalThis.GPUTextureUsage;

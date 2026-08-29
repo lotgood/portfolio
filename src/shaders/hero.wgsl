@@ -58,13 +58,14 @@ fn aces_tonemap(color: vec3f) -> vec3f {
   return clamp((color * (a * color + b)) / (color * (c * color + d) + e), vec3f(0.0), vec3f(1.0));
 }
 
-// Extended-range mapping: identity at or below SDR white (1.0), rational rolloff
-// above it toward `limit`, so the base image matches SDR exactly and only genuine
-// highlight energy rises above reference white without hard-clipping.
+// Extended-range mapping: identity at or below SDR white (1.0), then a soft knee
+// that stays near-linear just above white and only bends as it approaches `limit`.
+// A rational rolloff (span*e/(e+span)) would halve the excess immediately, which
+// reads as a diffuse wash; the exponential knee keeps highlights punchy.
 fn hdr_extend(color: vec3f, limit: f32) -> vec3f {
   let excess = max(color - vec3f(1.0), vec3f(0.0));
   let span = max(limit - 1.0, 0.001);
-  let rolled = vec3f(span) * excess / (excess + vec3f(span));
+  let rolled = vec3f(span) * (vec3f(1.0) - exp(-excess / vec3f(span)));
   return min(color, vec3f(1.0)) + rolled;
 }
 
@@ -103,7 +104,12 @@ fn fs_main(@location(0) uv: vec2f) -> @location(0) vec4f {
     let tint = palette(layer * 0.17 + time * 0.025 + q.x * 0.035);
 
     color += tint * (core * 0.052 + haze * 0.115);
-    glow += tint * core * 0.16;
+    // Gate the highlight to the ribbon centreline. The 1/d core has a long tail:
+    // ungated it lifts a wide band just over reference white, which reads as a
+    // diffuse wash. The threshold keeps mid-tones below white so the hot core
+    // carries the contrast.
+    let core_hot = smoothstep(0.55, 1.0, core);
+    glow += tint * core_hot * core_hot * 1.1;
     q = rotate(q * 1.13 + vec2f(0.045, -0.025), 0.17 + layer * 0.035);
   }
 
@@ -114,7 +120,8 @@ fn fs_main(@location(0) uv: vec2f) -> @location(0) vec4f {
     let shimmer = 0.55 + 0.45 * sin(time * 5.0 + star_seed.y * 18.0);
     let star_color = vec3f(0.38, 0.48, 0.75) * star_gate * shimmer * 0.24;
     color += star_color;
-    glow += star_color;
+    // Stars occupy ~0.35% of the frame, so they carry the hardest punch.
+    glow += star_color * 3.0;
   }
 
   let horizon_wave = sin(p.x * 1.85 + time * 0.7) * 0.055;
@@ -125,6 +132,15 @@ fn fs_main(@location(0) uv: vec2f) -> @location(0) vec4f {
   let vignette_gain = 0.44 + vignette * 0.76;
   color *= vignette_gain;
   glow *= vignette_gain;
+
+  // Copy-safe area. HDR highlights reach several times reference white, which is
+  // brighter than the pure-white headline sitting on top of them, so the glow is
+  // damped over the text column to keep contrast. The base image is untouched, so
+  // SDR is unaffected. Layout contract: headline/lede/CTA occupy the left column,
+  // roughly uv.x < 0.68 and uv.y in 0.10-0.70 - revisit if the hero copy moves.
+  let guard_x = 1.0 - smoothstep(0.48, 0.68, uv.x);
+  let guard_y = smoothstep(0.08, 0.18, uv.y) * (1.0 - smoothstep(0.56, 0.72, uv.y));
+  glow *= 1.0 - 0.8 * guard_x * guard_y;
 
   let pixel = floor(uv * hero.viewport);
   let grain = hash21(pixel + floor(hero.time * 24.0)) - 0.5;
@@ -138,7 +154,7 @@ fn fs_main(@location(0) uv: vec2f) -> @location(0) vec4f {
     // the ACES base stays identical to SDR, and highlight glow is added on top so
     // star and ribbon cores land above reference white before the headroom rolloff.
     let limit = max(hero.headroom, 1.2);
-    let boosted = mapped + glow * (2.2 + limit * 2.0);
+    let boosted = mapped + glow * 10.0;
     let limited = hdr_extend(boosted, limit);
     let encoded = pow(limited, vec3f(1.0 / 2.2));
     return vec4f(encoded, 1.0);

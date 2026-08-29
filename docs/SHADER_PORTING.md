@@ -46,6 +46,8 @@ Preserve this contract while iterating so shader swaps do not require applicatio
 3. Replace FragCoord globals with the `hero` fields above.
 4. Convert pixel coordinates with `uv`, `hero.viewport`, and `hero.aspect`.
 5. Keep color calculations unclipped internally, then use one explicit output transform. Accumulate highlight energy (cores, stars, speculars) into a separate `glow` term alongside `color`. When `hero.hdr_mode > 0.5`, emit the tone-mapped SDR base **plus** scaled `glow`, then roll off only the part above 1.0 toward `hero.headroom` so highlights exceed reference white; otherwise tone map to SDR as before. Do not scale the base image by `hdr_mode` — an HDR image whose peak never exceeds 1.0 is indistinguishable from SDR.
+6. Gate `glow` to genuinely hot pixels (threshold the core, do not feed it a `1/d` tail). A broad band sitting just over reference white reads as a diffuse wash; a small area several times over white reads as HDR.
+7. Damp `glow` over the hero copy column. HDR highlights are brighter than the pure-white headline drawn on top of them, so an ungated highlight crossing the text inverts the intended contrast. The current mask covers roughly `uv.x < 0.68`, `uv.y` in `0.10-0.70`; keep an equivalent guard when swapping shaders, and update it if the hero layout moves.
 6. Paste the result into `src/shaders/hero.wgsl`.
 7. Run `pnpm check` before opening the browser.
 8. Verify low-quality and reduced-motion behavior before increasing detail.
