@@ -13,6 +13,7 @@
   --shell: min(1180px, calc(100vw - 48px));
   --radius: 26px;
   --header-height: 82px;
+  --grain: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.86' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.78'/%3E%3C/svg%3E");
   font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -37,6 +38,8 @@ html {
 }
 
 body {
+  position: relative;
+  z-index: 0;
   min-width: 320px;
   margin: 0;
   overflow-x: clip;
@@ -44,6 +47,44 @@ body {
     radial-gradient(circle at 80% 20%, rgb(82 89 150 / 0.07), transparent 30rem),
     var(--background);
   color: var(--text);
+}
+
+/*
+ * Ambient layers for everything below the hero.
+ * The hero is opaque and isolated, so both layers are painted behind it and only
+ * become visible once it scrolls away - that is what removes the hard texture
+ * seam at the hero's bottom edge without touching the hero itself.
+ * Character is deliberately the opposite of the hero: wide, soft and slow,
+ * instead of sharp hot filaments.
+ */
+.ambient {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+}
+
+.ambient__light {
+  inset: -22vh -14vw;
+  background:
+    radial-gradient(38% 30% at 24% 22%, rgb(88 108 214 / 0.15), transparent 70%),
+    radial-gradient(34% 28% at 78% 58%, rgb(142 98 205 / 0.12), transparent 68%),
+    radial-gradient(30% 26% at 46% 94%, rgb(78 158 196 / 0.10), transparent 72%);
+  will-change: transform;
+}
+
+.ambient__grain {
+  opacity: 0.038;
+  background-image: var(--grain);
+}
+
+@supports (color: color(display-p3 1 1 1)) {
+  .ambient__light {
+    background:
+      radial-gradient(38% 30% at 24% 22%, color(display-p3 0.34 0.42 0.86 / 0.17), transparent 70%),
+      radial-gradient(34% 28% at 78% 58%, color(display-p3 0.55 0.38 0.82 / 0.13), transparent 68%),
+      radial-gradient(30% 26% at 46% 94%, color(display-p3 0.3 0.62 0.78 / 0.11), transparent 72%);
+  }
 }
 
 body,
@@ -266,13 +307,19 @@ h3 {
 
 .hero__veil {
   background:
-    linear-gradient(to bottom, rgb(4 5 8 / 0.08), rgb(4 5 8 / 0.15) 60%, #08090c 100%),
+    linear-gradient(
+      to bottom,
+      rgb(4 5 8 / 0.08) 0%,
+      rgb(4 5 8 / 0.14) 52%,
+      rgb(7 8 11 / 0.68) 82%,
+      #08090c 97%
+    ),
     radial-gradient(circle at 50% 42%, transparent 25%, rgb(0 0 0 / 0.23) 100%);
 }
 
 .hero__grain {
   opacity: 0.052;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.86' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.78'/%3E%3C/svg%3E");
+  background-image: var(--grain);
   pointer-events: none;
 }
 
@@ -333,6 +380,7 @@ h3 {
 }
 
 .section {
+  position: relative;
   padding-block: clamp(96px, 13vw, 168px);
   content-visibility: auto;
   contain-intrinsic-size: auto 900px;
@@ -921,6 +969,21 @@ h3 {
   .hero__canvas {
     display: none;
   }
+
+  .ambient__light,
+  .section::before {
+    animation: none !important;
+    animation-timeline: none !important;
+  }
+
+  .ambient__light {
+    transform: none !important;
+  }
+
+  .section::before {
+    opacity: 0.7;
+    background-position: 50% 0;
+  }
 }
 
 @media (prefers-contrast: more) {
@@ -937,7 +1000,8 @@ h3 {
 @media (forced-colors: active) {
   .hero__visual,
   .project-card__visual,
-  .case-hero__visual {
+  .case-hero__visual,
+  .ambient {
     display: none;
   }
 
@@ -963,6 +1027,63 @@ h3 {
     to {
       opacity: 1;
       transform: translateY(0);
+    }
+  }
+
+  /*
+   * Hairline that lights up as a section enters the viewport. Scoped to a section
+   * that follows another section, so the first content block keeps a clean
+   * gradient handoff from the hero instead of gaining a hard rule at the seam.
+   */
+  .section + .section::before {
+    content: '';
+    position: absolute;
+    inset-inline: 0;
+    top: 0;
+    height: 1px;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      var(--line) 26%,
+      var(--line-strong) 40%,
+      var(--line) 54%,
+      transparent 100%
+    );
+    background-size: 260% 100%;
+    background-repeat: no-repeat;
+    animation: rule-sweep linear both;
+    animation-timeline: view();
+    animation-range: entry 0% entry 72%;
+  }
+
+  @keyframes rule-sweep {
+    from {
+      background-position: -70% 0;
+      opacity: 0;
+    }
+    45% {
+      opacity: 1;
+    }
+    to {
+      background-position: 150% 0;
+      opacity: 0.9;
+    }
+  }
+}
+
+@supports (animation-timeline: scroll()) {
+  /* Slow parallax drift of the ambient light across the whole document. */
+  .ambient__light {
+    animation: ambient-drift linear both;
+    animation-timeline: scroll(root block);
+  }
+
+  @keyframes ambient-drift {
+    from {
+      transform: translate3d(0, 0, 0) scale(1);
+    }
+    to {
+      transform: translate3d(-5vw, 9vh, 0) scale(1.14);
     }
   }
 }
