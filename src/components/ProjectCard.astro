@@ -1,0 +1,28 @@
+---
+import type { Project } from '../data/projects';
+
+interface Props {
+  project: Project;
+}
+
+const { project } = Astro.props;
+const transitionName = `project-${project.slug}`;
+---
+
+<a
+  class="project-card"
+  href={`/projects/${project.slug}`}
+  style={`--project-accent:${project.accent};--project-accent-alt:${project.accentAlt};--project-transition:${transitionName}`}
+  aria-label={`Open ${project.title} case study`}
+>
+  <span class="project-card__index">{project.index}</span>
+  <div class="project-card__content">
+    <p class="project-card__meta">{project.category} · {project.year}</p>
+    <h2>{project.title}</h2>
+    <p>{project.summary}</p>
+  </div>
+  <div class="project-card__visual" aria-hidden="true">
+    <span></span>
+  </div>
+  <span class="project-card__arrow" aria-hidden="true">↗</span>
+</a>

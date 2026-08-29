@@ -1,0 +1,39 @@
+---
+import SiteHeader from './SiteHeader.astro';
+---
+
+<section class="hero" data-hero data-render-state="fallback" aria-labelledby="hero-title">
+  <div class="hero__visual" aria-hidden="true">
+    <div class="hero__fallback"></div>
+    <canvas class="hero__canvas" data-hero-canvas tabindex="-1"></canvas>
+    <div class="hero__veil"></div>
+    <div class="hero__grain"></div>
+  </div>
+
+  <SiteHeader mode="overlay" />
+
+  <div class="shell hero__body">
+    <p class="eyebrow">Software · Systems · Graphics</p>
+    <h1 id="hero-title">
+      I build ideas<br />
+      into <em>clear</em> systems.
+    </h1>
+    <p class="hero__lede">
+      A lightweight portfolio of interactive projects, technical experiments, and tools—designed to feel sharp without becoming heavy.
+    </p>
+    <div class="hero__actions">
+      <a class="button button--primary" href="#work">Explore selected work</a>
+      <span class="gpu-status" data-gpu-status aria-live="polite">Static first</span>
+    </div>
+  </div>
+
+  <div class="shell hero__footer" aria-hidden="true">
+    <span>Scroll to explore</span>
+    <span>WebGPU is optional</span>
+  </div>
+</section>
+
+<script>
+  import { bootHero } from '../gpu/hero-bootstrap';
+  bootHero();
+</script>

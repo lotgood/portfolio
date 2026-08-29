@@ -1,0 +1,14 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import SiteHeader from '../components/SiteHeader.astro';
+---
+
+<BaseLayout title="Page not found — Hyungho Lee" description="The requested page does not exist.">
+  <SiteHeader />
+  <main id="main-content" class="not-found shell">
+    <p class="eyebrow">404</p>
+    <h1>Nothing lives here.</h1>
+    <p>The address may have changed, or the page has not been built yet.</p>
+    <a class="button button--primary" href="/">Return home</a>
+  </main>
+</BaseLayout>

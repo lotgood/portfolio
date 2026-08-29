@@ -1,0 +1,14 @@
+---
+import { site } from '../data/site';
+---
+
+<footer class="site-footer shell">
+  <div>
+    <p class="site-footer__name">{site.name}</p>
+    <p>{site.location} · {site.availability}</p>
+  </div>
+  <div class="site-footer__links">
+    {site.links.map((link) => <a href={link.href}>{link.label}</a>)}
+  </div>
+  <p class="site-footer__note">Astro · native CSS · optional WebGPU</p>
+</footer>

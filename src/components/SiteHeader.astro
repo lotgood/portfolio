@@ -1,0 +1,23 @@
+---
+import { site } from '../data/site';
+
+interface Props {
+  mode?: 'overlay' | 'solid';
+}
+
+const { mode = 'solid' } = Astro.props;
+---
+
+<header class:list={['site-header', `site-header--${mode}`]}>
+  <div class="shell site-header__inner">
+    <a class="brand" href="/" aria-label={`${site.name}, home`}>
+      <span>{site.shortName}</span><span class="brand__dot" aria-hidden="true">.</span>
+    </a>
+
+    <nav aria-label="Primary navigation">
+      <a href="/#work">Work</a>
+      <a href="/#about">About</a>
+      <a href={`mailto:${site.email}`}>Contact</a>
+    </nav>
+  </div>
+</header>

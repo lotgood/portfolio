@@ -1,0 +1,72 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import SiteHeader from '../../components/SiteHeader.astro';
+import SiteFooter from '../../components/SiteFooter.astro';
+import { projects, type Project } from '../../data/projects';
+
+export function getStaticPaths() {
+  return projects.map((project) => ({
+    params: { slug: project.slug },
+    props: { project }
+  }));
+}
+
+interface Props {
+  project: Project;
+}
+
+const { project } = Astro.props;
+const transitionName = `project-${project.slug}`;
+---
+
+<BaseLayout title={`${project.title} — Hyungho Lee`} description={project.summary}>
+  <SiteHeader />
+
+  <main id="main-content" class="case-study">
+    <header
+      class="case-hero shell"
+      style={`--project-accent:${project.accent};--project-accent-alt:${project.accentAlt};--project-transition:${transitionName}`}
+    >
+      <a class="back-link" href="/#work">← Selected work</a>
+      <div class="case-hero__meta">
+        <span>{project.index}</span>
+        <span>{project.category}</span>
+        <span>{project.year}</span>
+      </div>
+      <h1>{project.title}</h1>
+      <p>{project.statement}</p>
+      <div class="case-hero__visual" aria-hidden="true"><span></span></div>
+    </header>
+
+    <article class="case-body shell">
+      <div class="case-body__intro">
+        <p class="eyebrow">Overview</p>
+        <p>{project.summary}</p>
+      </div>
+
+      <div class="case-body__columns">
+        <section aria-labelledby="story-title">
+          <h2 id="story-title">What belongs here</h2>
+          {project.details.map((paragraph) => <p>{paragraph}</p>)}
+        </section>
+
+        <aside aria-labelledby="role-title">
+          <h2 id="role-title">Role</h2>
+          <ul>
+            {project.responsibilities.map((item) => <li>{item}</li>)}
+          </ul>
+          <h2>Topics</h2>
+          <ul class="tag-list">
+            {project.tags.map((tag) => <li>{tag}</li>)}
+          </ul>
+        </aside>
+      </div>
+
+      <a class="next-project" href="/#work">
+        <span>Back to all work</span><span aria-hidden="true">↗</span>
+      </a>
+    </article>
+  </main>
+
+  <SiteFooter />
+</BaseLayout>

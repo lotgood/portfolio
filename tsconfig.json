@@ -1,0 +1,10 @@
+{
+  "extends": "astro/tsconfigs/strict",
+  "compilerOptions": {
+    "noUncheckedIndexedAccess": true,
+    "types": [
+      "@webgpu/types",
+      "@vgpu/wgsl/wgsl-types"
+    ]
+  }
+}

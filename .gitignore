@@ -1,0 +1,9 @@
+.gjc/
+node_modules/
+dist/
+.astro/
+.env
+.env.*
+!.env.example
+.DS_Store
+*.log

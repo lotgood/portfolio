@@ -1,0 +1,28 @@
+{
+  "name": "hyungho-webgpu-portfolio",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "check": "astro check && vgpu check src/shaders/hero.wgsl",
+    "budget": "node scripts/check-budgets.mjs",
+    "validate": "pnpm run check && pnpm run build && pnpm run budget",
+    "gpu:doctor": "vgpu doctor --pretty"
+  },
+  "dependencies": {
+    "@vgpu/wgsl": "0.3.1",
+    "astro": "7.2.9",
+    "vgpu": "0.3.1"
+  },
+  "devDependencies": {
+    "@astrojs/check": "0.9.10",
+    "@webgpu/types": "0.1.71",
+    "typescript": "6.0.3"
+  }
+}
