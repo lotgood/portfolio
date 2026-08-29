@@ -1,8 +1,9 @@
 import { gzipSync } from 'node:zlib';
 import { readFile, readdir, stat } from 'node:fs/promises';
-import { join, relative, resolve } from 'node:path';
+import { join, resolve } from 'node:path';
 
 const root = resolve('dist');
+const basePath = (process.env.BASE_PATH ?? '/').replace(/\/$/, '');
 const entry = join(root, 'index.html');
 
 const limits = {
@@ -26,8 +27,9 @@ async function walk(directory) {
 }
 
 function localAssetPath(url) {
-  const clean = url.split('?')[0]?.split('#')[0];
+  let clean = url.split('?')[0]?.split('#')[0];
   if (!clean || /^(?:https?:|data:|mailto:|#)/.test(clean)) return undefined;
+  if (basePath && clean.startsWith(`${basePath}/`)) clean = clean.slice(basePath.length);
   return join(root, clean.replace(/^\//, ''));
 }
 
