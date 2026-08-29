@@ -266,8 +266,8 @@ export async function mountVisuals(targets: VisualTargets) {
       // native resolution: the march is the expensive part and the result has no
       // hard edges to lose.
       const ambientDpr: readonly [number, number] = [
-        profile.dpr[0] * 0.6,
-        profile.dpr[1] * 0.62
+        profile.dpr[0] * 0.78,
+        profile.dpr[1] * 0.8
       ];
       const { output, hdr } = createSurface(targets.ambient.canvas, ambientDpr);
       hdrActive = hdrActive || hdr;

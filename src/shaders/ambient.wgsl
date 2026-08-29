@@ -45,7 +45,10 @@ fn hdr_extend(color: vec3f, limit: f32) -> vec3f {
 fn fs_main(@location(0) uv: vec2f) -> @location(0) vec4f {
   let screen = (uv - 0.5) * vec2f(ambient.aspect, 1.0);
   let t = ambient.time * 0.16;
-  let travel = ambient.time * 0.10 + ambient.scroll * 5.5;
+  // Scroll nudges the field forward. Deep travel per scroll unit makes the whole
+  // volume churn while scrolling, which reads as motion sickness rather than
+  // parallax, so the coupling stays small.
+  let travel = ambient.time * 0.10 + ambient.scroll * 0.85;
 
   let steps = select(8, select(12, 16, ambient.quality > 0.88), ambient.quality > 0.62);
 
@@ -57,7 +60,10 @@ fn fs_main(@location(0) uv: vec2f) -> @location(0) vec4f {
   var direction = normalize(vec3f(screen * 1.15, 1.0));
   direction = normalize(direction + vec3f(pointer * 0.22, 0.0));
 
-  var z = 0.6;
+  // Per-pixel jitter on the march start. Without it, a 16-step march quantises
+  // into visible shells that crawl across the screen as the field moves.
+  let jitter = hash21(floor(uv * ambient.viewport) + floor(ambient.time * 60.0) * 0.017);
+  var z = 0.55 + jitter * 0.12;
   var accumulated = vec3f(0.0);
 
   for (var i = 0; i < 16; i += 1) {
@@ -70,23 +76,26 @@ fn fs_main(@location(0) uv: vec2f) -> @location(0) vec4f {
 
     // Turbulence: repeatedly fold the sample point at rising frequency. This is
     // what breaks the smooth volume into filaments.
-    var scale = 1.6;
-    for (var k = 0; k < 4; k += 1) {
-      scale /= 0.72;
+    var scale = 1.5;
+    for (var k = 0; k < 5; k += 1) {
+      scale /= 0.74;
       p += sin(p.yzx * scale - t * 0.9) / scale;
     }
 
-    // Distance to the folded sheet, also used as the march step.
-    let sheet = (length(p.xy) + 0.055) / 6.5;
+    // Distance to a shell rather than to the axis: one tube gives two or three
+    // fat ribbons, a shell threaded by the turbulence gives many thin filaments.
+    let sheet = (abs(length(p.xy) - 1.15) + 0.05) / 6.0;
     z += sheet;
 
-    // Iridescence over depth, held inside the site's indigo/violet family: a full
-    // hue sweep turns this into a lava lamp rather than a background.
-    let tint = vec3f(0.30, 0.38, 0.62) + vec3f(0.20, 0.14, 0.26) * cos(vec3f(0.9, 0.75, 0.55) + z * 0.7 + t * 0.5);
+    // Iridescence: hue advances with depth and with the turbulence itself, so
+    // neighbouring filaments separate into cyan, violet and warm gold instead of
+    // one flat blue. The base stays cool; the accents ride on the hot cores.
+    let hue = z * 1.15 + p.z * 0.12 + t * 0.35;
+    let tint = vec3f(0.30, 0.36, 0.56) + vec3f(0.32, 0.20, 0.26) * cos(vec3f(0.0, 2.1, 4.2) + hue);
     accumulated += tint / sheet;
   }
 
-  var energy = accumulated * 0.020;
+  var energy = accumulated * 0.0060;
   energy *= 1.0 + pointer_falloff * 1.35;
 
   // Body copy sits in the centred content column, so damp the field there. This
@@ -106,7 +115,7 @@ fn fs_main(@location(0) uv: vec2f) -> @location(0) vec4f {
   // that separation is what lets SDR stay calm while HDR still gets hot cores.
   // Rarer but hotter cores: a wide band sitting just over white washes out body
   // copy, while a small number of genuinely bright cores reads as HDR.
-  let base = tanh(energy * 0.05);
+  let base = tanh(energy * 0.033);
   let spill = max(energy - 3.2, vec3f(0.0)) * 1.9;
 
   let pixel = floor(uv * ambient.viewport);
