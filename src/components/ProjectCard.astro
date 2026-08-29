@@ -1,5 +1,6 @@
 ---
 import type { Project } from '../data/projects';
+import { withBase } from '../lib/url';
 
 interface Props {
   project: Project;
@@ -11,7 +12,7 @@ const transitionName = `project-${project.slug}`;
 
 <a
   class="project-card"
-  href={`/projects/${project.slug}`}
+  href={withBase(`/projects/${project.slug}`)}
   style={`--project-accent:${project.accent};--project-accent-alt:${project.accentAlt};--project-transition:${transitionName}`}
   aria-label={`Open ${project.title} case study`}
 >

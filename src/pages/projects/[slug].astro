@@ -3,6 +3,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
 import SiteHeader from '../../components/SiteHeader.astro';
 import SiteFooter from '../../components/SiteFooter.astro';
 import { projects, type Project } from '../../data/projects';
+import { withBase } from '../../lib/url';
 
 export function getStaticPaths() {
   return projects.map((project) => ({
@@ -27,7 +28,7 @@ const transitionName = `project-${project.slug}`;
       class="case-hero shell"
       style={`--project-accent:${project.accent};--project-accent-alt:${project.accentAlt};--project-transition:${transitionName}`}
     >
-      <a class="back-link" href="/#work">← Selected work</a>
+      <a class="back-link" href={withBase('/#work')}>← Selected work</a>
       <div class="case-hero__meta">
         <span>{project.index}</span>
         <span>{project.category}</span>
@@ -71,14 +72,14 @@ const transitionName = `project-${project.slug}`;
         <section class="case-media" aria-label="Screenshots">
           {project.images.map((image) => (
             <figure>
-              <img src={image.src} alt={image.alt} loading="lazy" decoding="async" />
+              <img src={withBase(image.src)} alt={image.alt} loading="lazy" decoding="async" />
               {image.caption && <figcaption>{image.caption}</figcaption>}
             </figure>
           ))}
         </section>
       )}
 
-      <a class="next-project" href="/#work">
+      <a class="next-project" href={withBase('/#work')}>
         <span>Back to all work</span><span aria-hidden="true">↗</span>
       </a>
     </article>

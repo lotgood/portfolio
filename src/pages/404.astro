@@ -1,6 +1,7 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
 import SiteHeader from '../components/SiteHeader.astro';
+import { withBase } from '../lib/url';
 ---
 
 <BaseLayout title="Page not found — lotgood" description="The requested page does not exist.">
@@ -9,6 +10,6 @@ import SiteHeader from '../components/SiteHeader.astro';
     <p class="eyebrow">404</p>
     <h1>Nothing lives here.</h1>
     <p>The address may have changed, or the page has not been built yet.</p>
-    <a class="button button--primary" href="/">Return home</a>
+    <a class="button button--primary" href={withBase('/')}>Return home</a>
   </main>
 </BaseLayout>
