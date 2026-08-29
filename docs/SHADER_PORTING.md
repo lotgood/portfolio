@@ -45,7 +45,7 @@ Preserve this contract while iterating so shader swaps do not require applicatio
 2. Export WGSL when possible; otherwise port the smallest self-contained fragment.
 3. Replace FragCoord globals with the `hero` fields above.
 4. Convert pixel coordinates with `uv`, `hero.viewport`, and `hero.aspect`.
-5. Keep color calculations unclipped internally, then use one explicit output transform. When `hero.hdr_mode > 0.5`, preserve values above 1.0 through a soft limit at `hero.headroom` instead of clamping to SDR; otherwise tone map to SDR as before.
+5. Keep color calculations unclipped internally, then use one explicit output transform. Accumulate highlight energy (cores, stars, speculars) into a separate `glow` term alongside `color`. When `hero.hdr_mode > 0.5`, emit the tone-mapped SDR base **plus** scaled `glow`, then roll off only the part above 1.0 toward `hero.headroom` so highlights exceed reference white; otherwise tone map to SDR as before. Do not scale the base image by `hdr_mode` — an HDR image whose peak never exceeds 1.0 is indistinguishable from SDR.
 6. Paste the result into `src/shaders/hero.wgsl`.
 7. Run `pnpm check` before opening the browser.
 8. Verify low-quality and reduced-motion behavior before increasing detail.

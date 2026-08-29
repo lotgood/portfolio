@@ -58,11 +58,14 @@ fn aces_tonemap(color: vec3f) -> vec3f {
   return clamp((color * (a * color + b)) / (color * (c * color + d) + e), vec3f(0.0), vec3f(1.0));
 }
 
-// Extended-Reinhard soft limit: keeps values above 1.0 (brighter than SDR white)
-// while rolling everything off toward `limit` so highlights never hard-clip.
-fn hdr_soft_limit(color: vec3f, limit: f32) -> vec3f {
-  let l2 = vec3f(limit * limit);
-  return color * (vec3f(1.0) + color / l2) / (vec3f(1.0) + color);
+// Extended-range mapping: identity at or below SDR white (1.0), rational rolloff
+// above it toward `limit`, so the base image matches SDR exactly and only genuine
+// highlight energy rises above reference white without hard-clipping.
+fn hdr_extend(color: vec3f, limit: f32) -> vec3f {
+  let excess = max(color - vec3f(1.0), vec3f(0.0));
+  let span = max(limit - 1.0, 0.001);
+  let rolled = vec3f(span) * excess / (excess + vec3f(span));
+  return min(color, vec3f(1.0)) + rolled;
 }
 
 @fragment
@@ -82,6 +85,8 @@ fn fs_main(@location(0) uv: vec2f) -> @location(0) vec4f {
 
   let layers = select(2.0, select(3.0, 4.0, hero.quality > 0.88), hero.quality > 0.62);
   var q = p;
+  // Highlight energy accumulated separately; in HDR mode it is lifted above SDR white.
+  var glow = vec3f(0.0);
 
   for (var i = 0; i < 4; i += 1) {
     let layer = f32(i);
@@ -97,7 +102,8 @@ fn fs_main(@location(0) uv: vec2f) -> @location(0) vec4f {
     let haze = exp(-distance_to_ribbon * (17.0 + layer * 3.0));
     let tint = palette(layer * 0.17 + time * 0.025 + q.x * 0.035);
 
-    color += tint * (core * 0.052 * (1.0 + hero.hdr_mode * 2.4) + haze * 0.115);
+    color += tint * (core * 0.052 + haze * 0.115);
+    glow += tint * core * 0.16;
     q = rotate(q * 1.13 + vec2f(0.045, -0.025), 0.17 + layer * 0.035);
   }
 
@@ -106,7 +112,9 @@ fn fs_main(@location(0) uv: vec2f) -> @location(0) vec4f {
     let star_seed = hash22(star_grid);
     let star_gate = step(0.9965, star_seed.x);
     let shimmer = 0.55 + 0.45 * sin(time * 5.0 + star_seed.y * 18.0);
-    color += vec3f(0.38, 0.48, 0.75) * star_gate * shimmer * 0.24 * (1.0 + hero.hdr_mode * 2.2);
+    let star_color = vec3f(0.38, 0.48, 0.75) * star_gate * shimmer * 0.24;
+    color += star_color;
+    glow += star_color;
   }
 
   let horizon_wave = sin(p.x * 1.85 + time * 0.7) * 0.055;
@@ -114,23 +122,28 @@ fn fs_main(@location(0) uv: vec2f) -> @location(0) vec4f {
   color += vec3f(0.11, 0.17, 0.33) * horizon * 0.16;
 
   let vignette = smoothstep(0.94, 0.24, length((uv - 0.5) * vec2f(0.82, 1.0)));
-  color *= 0.44 + vignette * 0.76;
+  let vignette_gain = 0.44 + vignette * 0.76;
+  color *= vignette_gain;
+  glow *= vignette_gain;
 
   let pixel = floor(uv * hero.viewport);
   let grain = hash21(pixel + floor(hero.time * 24.0)) - 0.5;
   color += grain * 0.005;
 
   let scene = max(color, vec3f(0.0)) * 1.18;
+  let mapped = aces_tonemap(scene);
 
   if (hero.hdr_mode > 0.5) {
-    // Extended-range output: values above 1.0 survive to the HDR display.
-    // The canvas is rgba16float + toneMapping 'extended', so no SDR clamp here.
-    let limited = hdr_soft_limit(scene, max(hero.headroom, 1.0));
+    // Extended-range output on the rgba16float + toneMapping 'extended' canvas:
+    // the ACES base stays identical to SDR, and highlight glow is added on top so
+    // star and ribbon cores land above reference white before the headroom rolloff.
+    let limit = max(hero.headroom, 1.2);
+    let boosted = mapped + glow * (2.2 + limit * 2.0);
+    let limited = hdr_extend(boosted, limit);
     let encoded = pow(limited, vec3f(1.0 / 2.2));
     return vec4f(encoded, 1.0);
   }
 
-  let mapped = aces_tonemap(scene);
   let display = pow(mapped, vec3f(1.0 / 2.2));
   return vec4f(display, 1.0);
 }
