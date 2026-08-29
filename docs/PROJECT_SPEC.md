@@ -19,8 +19,8 @@ A compact personal portfolio that feels premium immediately, remains readable an
 - Native cross-document View Transitions where supported
 - CSS gradient fallback that is visually complete before the GPU starts
 - Lazy WebGPU hero with pointer/scroll response and conservative quality profiles
-- Document-level ambient field of sparse specular glints, shown on every page
-- True extended-range HDR output on Chromium + HDR displays (capability-gated, with SDR tone-map and CSS fallbacks elsewhere)
+- Document-level ambient field, shown on every page: a volumetric turbulence march, SDR only for now
+- True extended-range HDR output **on the hero** on Chromium + HDR displays (capability-gated, with SDR tone-map and CSS fallbacks elsewhere)
 - Semantic structure, keyboard focus, skip navigation, and reduced-motion behavior
 - Build, type, shader, and bundle-budget validation
 

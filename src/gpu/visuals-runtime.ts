@@ -136,18 +136,20 @@ export async function mountVisuals(targets: VisualTargets) {
 
     const createSurface = (
       canvas: HTMLCanvasElement,
-      dpr: readonly [number, number] = profile.dpr
+      dpr: readonly [number, number] = profile.dpr,
+      allowHdr = true
     ): { output: Surface; hdr: boolean } => {
+      const wantsHdr = allowHdr && hdrCandidate;
       const output = surface(gpu, canvas, {
         dpr,
-        ...(hdrCandidate ? { format: 'rgba16float' as GPUTextureFormat } : {}),
+        ...(wantsHdr ? { format: 'rgba16float' as GPUTextureFormat } : {}),
         colorSpace,
         alphaMode: 'opaque'
       });
       // The HDR path reuses the same DPR caps and adaptive-quality rules as SDR;
       // rgba16float doubles bandwidth, so the profile limits stay authoritative.
       const hdr =
-        hdrCandidate &&
+        wantsHdr &&
         enableExtendedToneMapping(output.context as ToneMappedCanvasContext, gpu.gpu);
       return { output, hdr };
     };
@@ -269,8 +271,9 @@ export async function mountVisuals(targets: VisualTargets) {
         profile.dpr[0] * 0.78,
         profile.dpr[1] * 0.8
       ];
-      const { output, hdr } = createSurface(targets.ambient.canvas, ambientDpr);
-      hdrActive = hdrActive || hdr;
+      // SDR by design: extended range stays with the hero while this treatment is
+      // still being settled.
+      const { output } = createSurface(targets.ambient.canvas, ambientDpr, false);
 
       const getAspect = () => output.size[0] / Math.max(output.size[1], 1);
       const getViewport = (): Vec2 => [output.size[0], output.size[1]];
@@ -293,8 +296,6 @@ export async function mountVisuals(targets: VisualTargets) {
             aspect: getAspect(),
             scroll: 0,
             quality: adaptiveQuality,
-            hdr_mode: hdr ? 1 : 0,
-            headroom: HDR_HEADROOM,
             pointer,
             viewport: getViewport()
           }

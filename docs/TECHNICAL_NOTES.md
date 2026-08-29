@@ -23,6 +23,8 @@ Both surfaces share one device and one frame loop, so the second surface costs a
 
 The hero's visual is masked to fade out at its bottom edge so the ambient field bleeds through from inside it. Without that, the point where the field appears reads as a horizontal rule.
 
+Extended-range output is currently the hero's alone. The ambient field is configured as an ordinary SDR surface while its visual treatment is still being settled, so there is no unused HDR path to keep working.
+
 ## Progressive-enhancement matrix
 
 | Environment | Result |
@@ -66,7 +68,7 @@ The hero ships a true extended-range (HDR) presentation path, guaranteed only on
 
 The implemented path satisfies these conditions:
 
-1. `rgba16float` canvas format carrying values above 1.0: the SDR ACES base is preserved exactly, highlight energy (ribbon cores and stars) is accumulated in a separate `glow` channel and added on top of reference white, and only the portion above 1.0 is rolled off toward the `hero.headroom` ceiling (identity at or below white, so the base image is unchanged),
+1. `rgba16float` canvas format on the hero surface carrying values above 1.0: the SDR ACES base is preserved exactly, highlight energy (ribbon cores and stars) is accumulated in a separate `glow` channel and added on top of reference white, and only the portion above 1.0 is rolled off toward the `hero.headroom` ceiling (identity at or below white, so the base image is unchanged),
 2. extended-range canvas presentation via `GPUCanvasContext.configure` with `toneMapping: { mode: 'extended' }` and `colorSpace: 'display-p3'` (applied as a re-configure on the vgpu surface context, which vgpu configures once and never overwrites on resize),
 3. explicit SDR tone-map fallback (the original ACES + gamma output stage) selected by the same shader,
 4. capability gating without UA sniffing: `dynamic-range: high` media query plus a configure-and-read-back probe of `toneMapping` support (`GPUCanvasContext.getConfiguration`),

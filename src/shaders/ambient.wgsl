@@ -2,14 +2,14 @@
 //
 // Volumetric march through a turbulent field: each step folds the sample point
 // with a sin-based turbulence, then accumulates light divided by the distance to
-// the folded sheet. That accumulation is what produces thin white-hot cores with
-// coloured halos - and it produces far more range than SDR can show, which is
-// exactly the point. `base` is the tone-mapped image an SDR display gets; `glow`
-// is the energy tone mapping had to compress away, and the HDR path puts it back
-// above reference white.
+// the folded sheet. That accumulation produces thin bright cores with coloured
+// halos, tone mapped down to sit behind page content.
+//
+// SDR only. The hero owns the extended-range path; this treatment is still being
+// settled, and an unused HDR branch here would only be dead code.
 //
 // The pointer steers the ray and adds a local attractor, so the field answers the
-// cursor. Scroll travels forward through the volume.
+// cursor. Scroll drifts the field forward.
 //
 // Original work. FragCoord/@Xor shaders informed the technique family only; no
 // third-party shader source is included (see docs/SHADER_PORTING.md).
@@ -19,8 +19,6 @@ struct AmbientParams {
   aspect: f32,
   scroll: f32,
   quality: f32,
-  hdr_mode: f32,
-  headroom: f32,
   pointer: vec2f,
   viewport: vec2f,
 }
@@ -36,6 +34,10 @@ fn hash21(p: vec2f) -> f32 {
 // Restricted three-stop ramp: teal, indigo, warm amber. A full cosine hue wheel
 // covers the whole spectrum and turns the field into a rainbow wash; three stops
 // give variety while staying inside the site's palette.
+//
+// This field is SDR by design. Extended-range output stays with the hero until
+// the ambient treatment is settled; carrying an unused HDR path here would just
+// be dead code to maintain.
 fn ramp(h: f32) -> vec3f {
   let teal = vec3f(0.16, 0.52, 0.68);
   let indigo = vec3f(0.40, 0.34, 0.80);
@@ -48,14 +50,6 @@ fn ramp(h: f32) -> vec3f {
   let total = max(w_teal + w_indigo + w_amber, 0.0001);
 
   return (teal * w_teal + indigo * w_indigo + amber * w_amber) / total;
-}
-
-// Identity at or below reference white, soft knee above it toward `limit`.
-fn hdr_extend(color: vec3f, limit: f32) -> vec3f {
-  let excess = max(color - vec3f(1.0), vec3f(0.0));
-  let span = max(limit - 1.0, 0.001);
-  let rolled = vec3f(span) * (vec3f(1.0) - exp(-excess / vec3f(span)));
-  return min(color, vec3f(1.0)) + rolled;
 }
 
 @fragment
@@ -142,40 +136,12 @@ fn fs_main(@location(0) uv: vec2f) -> @location(0) vec4f {
   let vignette = smoothstep(1.05, 0.05, length(screen * vec2f(0.85, 1.0)));
   energy *= 0.015 + pow(vignette, 1.35) * 0.60;
 
-  // `base` is what an SDR display can show, deliberately tone mapped well down so
-  // the field stays a background. `spill` is the range that compression discards,
-  // and it is measured from the uncompressed energy, not from the mapped image -
-  // that separation is what lets SDR stay calm while HDR still gets hot cores.
-  // Rarer but hotter cores: a wide band sitting just over white washes out body
-  // copy, while a small number of genuinely bright cores reads as HDR.
+  // Tone mapped well down so the field stays a background rather than a subject.
   let base = tanh(energy * 0.033);
-
-  // Overbright is measured on luminance, not per channel, then re-tinted with the
-  // local colour. Thresholding each channel separately would let whichever
-  // channel is strongest spill alone, turning every highlight the same hue.
-  // Threshold on the strongest channel, which is hue-neutral, then re-tint with
-  // the pixel's own colour.
-  //
-  // Thresholding on luminance looks natural but weights green at 0.72, so
-  // green-leaning pixels cross first and every core comes out green. Thresholding
-  // per channel has the mirror problem: whichever channel the palette favours
-  // spills alone. Only a hue-neutral magnitude keeps colour out of the decision.
-  let peak = max(max(energy.r, energy.g), max(energy.b, 0.0001));
-  // Mildly superlinear, so crossings pull ahead of single passes without running
-  // away. A steep exponent amplifies the march's dither into visible speckle,
-  // because the noise is multiplied along with the signal.
-  let overlap = pow(peak, 1.25);
-  let spill = (energy / peak) * max(overlap - 7.0, 0.0) * 1.5;
 
   let pixel = floor(uv * ambient.viewport);
   let grain = hash21(pixel + floor(ambient.time * 5.0)) - 0.5;
   let dithered = max(base + grain * 0.0016, vec3f(0.0));
-
-  if (ambient.hdr_mode > 0.5) {
-    let limit = max(ambient.headroom, 1.2);
-    let boosted = dithered + spill;
-    return vec4f(pow(hdr_extend(boosted, limit), vec3f(1.0 / 2.2)), 1.0);
-  }
 
   return vec4f(pow(dithered, vec3f(1.0 / 2.2)), 1.0);
 }
