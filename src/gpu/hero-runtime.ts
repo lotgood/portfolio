@@ -22,6 +22,77 @@ type QualityProfile = {
 
 type Vec2 = [number, number];
 
+type ToneMappedCanvasConfiguration = GPUCanvasConfiguration & {
+  toneMapping?: { mode: 'standard' | 'extended' };
+};
+
+type ToneMappedCanvasContext = GPUCanvasContext & {
+  getConfiguration?: () => (ToneMappedCanvasConfiguration & object) | null;
+};
+
+const HDR_HEADROOM = 2.0;
+
+function canvasTextureUsage(): number | undefined {
+  const usage = globalThis.GPUTextureUsage;
+  return usage
+    ? usage.RENDER_ATTACHMENT | usage.TEXTURE_BINDING | usage.COPY_SRC
+    : undefined;
+}
+
+/**
+ * Feature-detects extended-range (HDR) canvas tone mapping without UA sniffing:
+ * configure a throwaway context with `toneMapping: { mode: 'extended' }` and read the
+ * accepted configuration back. Browsers that ignore the dictionary member (or lack
+ * `getConfiguration`) report unsupported.
+ */
+function probeExtendedToneMapping(device: GPUDevice): boolean {
+  if (typeof OffscreenCanvas === 'undefined') return false;
+
+  try {
+    const probeCanvas = new OffscreenCanvas(1, 1);
+    const context = probeCanvas.getContext('webgpu') as ToneMappedCanvasContext | null;
+    if (!context || typeof context.getConfiguration !== 'function') return false;
+
+    context.configure({
+      device,
+      format: 'rgba16float',
+      colorSpace: 'display-p3',
+      alphaMode: 'opaque',
+      toneMapping: { mode: 'extended' }
+    } as ToneMappedCanvasConfiguration);
+    const accepted = context.getConfiguration();
+    context.unconfigure();
+    return accepted?.toneMapping?.mode === 'extended';
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * vgpu 0.3.1 configures the canvas context once at surface creation and never
+ * reconfigures on resize (verified in vgpu/dist/surface.js), so re-configuring the
+ * exposed context with the same device/format/colorSpace/usage plus `toneMapping`
+ * is a stable escape hatch until vgpu exposes tone mapping natively.
+ */
+function enableExtendedToneMapping(
+  context: ToneMappedCanvasContext,
+  device: GPUDevice
+): boolean {
+  try {
+    context.configure({
+      device,
+      format: 'rgba16float',
+      colorSpace: 'display-p3',
+      alphaMode: 'opaque',
+      usage: canvasTextureUsage(),
+      toneMapping: { mode: 'extended' }
+    } as ToneMappedCanvasConfiguration);
+    return context.getConfiguration?.()?.toneMapping?.mode === 'extended';
+  } catch {
+    return false;
+  }
+}
+
 function selectProfile(): QualityProfile {
   const hints = navigator as NavigatorCapabilities;
   const memory = hints.deviceMemory ?? 8;
@@ -60,14 +131,24 @@ export async function mountHero(canvas: HTMLCanvasElement, root: HTMLElement) {
   const gpu = await init();
 
   try {
-    const colorSpace: PredefinedColorSpace = matchMedia('(color-gamut: p3)').matches
-      ? 'display-p3'
-      : 'srgb';
+    const hdrCandidate =
+      matchMedia('(dynamic-range: high)').matches &&
+      probeExtendedToneMapping(gpu.gpu);
+    const colorSpace: PredefinedColorSpace =
+      hdrCandidate || matchMedia('(color-gamut: p3)').matches
+        ? 'display-p3'
+        : 'srgb';
     const output = surface(gpu, canvas, {
       dpr: profile.dpr,
+      ...(hdrCandidate ? { format: 'rgba16float' as GPUTextureFormat } : {}),
       colorSpace,
       alphaMode: 'opaque'
     });
+    // The HDR path reuses the same DPR caps and adaptive-quality rules as SDR;
+    // rgba16float doubles bandwidth, so the profile limits stay authoritative.
+    const hdrActive =
+      hdrCandidate &&
+      enableExtendedToneMapping(output.context as ToneMappedCanvasContext, gpu.gpu);
     const getAspect = () => output.size[0] / Math.max(output.size[1], 1);
     const getViewport = (): Vec2 => [output.size[0], output.size[1]];
 
@@ -89,6 +170,8 @@ export async function mountHero(canvas: HTMLCanvasElement, root: HTMLElement) {
           aspect: getAspect(),
           scroll: 0,
           quality: adaptiveQuality,
+          hdr_mode: hdrActive ? 1 : 0,
+          headroom: HDR_HEADROOM,
           pointer,
           viewport: getViewport()
         }
@@ -196,7 +279,9 @@ export async function mountHero(canvas: HTMLCanvasElement, root: HTMLElement) {
     startLoop();
 
     return {
-      profile: `${profile.label} · ${colorSpace === 'display-p3' ? 'P3' : 'sRGB'}`,
+      profile: `${profile.label} · ${
+        hdrActive ? 'HDR' : colorSpace === 'display-p3' ? 'P3' : 'sRGB'
+      }`,
       dispose() {
         stopLoop();
         observer.disconnect();

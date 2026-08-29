@@ -3,6 +3,8 @@ struct HeroParams {
   aspect: f32,
   scroll: f32,
   quality: f32,
+  hdr_mode: f32,
+  headroom: f32,
   pointer: vec2f,
   viewport: vec2f,
 }
@@ -56,6 +58,13 @@ fn aces_tonemap(color: vec3f) -> vec3f {
   return clamp((color * (a * color + b)) / (color * (c * color + d) + e), vec3f(0.0), vec3f(1.0));
 }
 
+// Extended-Reinhard soft limit: keeps values above 1.0 (brighter than SDR white)
+// while rolling everything off toward `limit` so highlights never hard-clip.
+fn hdr_soft_limit(color: vec3f, limit: f32) -> vec3f {
+  let l2 = vec3f(limit * limit);
+  return color * (vec3f(1.0) + color / l2) / (vec3f(1.0) + color);
+}
+
 @fragment
 fn fs_main(@location(0) uv: vec2f) -> @location(0) vec4f {
   var p = (uv - 0.5) * vec2f(hero.aspect, 1.0);
@@ -88,7 +97,7 @@ fn fs_main(@location(0) uv: vec2f) -> @location(0) vec4f {
     let haze = exp(-distance_to_ribbon * (17.0 + layer * 3.0));
     let tint = palette(layer * 0.17 + time * 0.025 + q.x * 0.035);
 
-    color += tint * (core * 0.052 + haze * 0.115);
+    color += tint * (core * 0.052 * (1.0 + hero.hdr_mode * 2.4) + haze * 0.115);
     q = rotate(q * 1.13 + vec2f(0.045, -0.025), 0.17 + layer * 0.035);
   }
 
@@ -97,7 +106,7 @@ fn fs_main(@location(0) uv: vec2f) -> @location(0) vec4f {
     let star_seed = hash22(star_grid);
     let star_gate = step(0.9965, star_seed.x);
     let shimmer = 0.55 + 0.45 * sin(time * 5.0 + star_seed.y * 18.0);
-    color += vec3f(0.38, 0.48, 0.75) * star_gate * shimmer * 0.24;
+    color += vec3f(0.38, 0.48, 0.75) * star_gate * shimmer * 0.24 * (1.0 + hero.hdr_mode * 2.2);
   }
 
   let horizon_wave = sin(p.x * 1.85 + time * 0.7) * 0.055;
@@ -111,7 +120,17 @@ fn fs_main(@location(0) uv: vec2f) -> @location(0) vec4f {
   let grain = hash21(pixel + floor(hero.time * 24.0)) - 0.5;
   color += grain * 0.005;
 
-  let mapped = aces_tonemap(max(color, vec3f(0.0)) * 1.18);
+  let scene = max(color, vec3f(0.0)) * 1.18;
+
+  if (hero.hdr_mode > 0.5) {
+    // Extended-range output: values above 1.0 survive to the HDR display.
+    // The canvas is rgba16float + toneMapping 'extended', so no SDR clamp here.
+    let limited = hdr_soft_limit(scene, max(hero.headroom, 1.0));
+    let encoded = pow(limited, vec3f(1.0 / 2.2));
+    return vec4f(encoded, 1.0);
+  }
+
+  let mapped = aces_tonemap(scene);
   let display = pow(mapped, vec3f(1.0 / 2.2));
   return vec4f(display, 1.0);
 }

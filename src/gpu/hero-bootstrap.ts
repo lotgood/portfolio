@@ -68,6 +68,18 @@ export function bootHero() {
       disposeRenderer = renderer.dispose;
       root.dataset.renderState = 'ready';
       setStatus(`WebGPU · ${renderer.profile}`);
+
+      if (import.meta.env.DEV && new URLSearchParams(location.search).has('hdrcheck')) {
+        // Dev-only XDR acceptance aid: a reference-white (#FFFFFF) swatch to compare
+        // against hero highlights. Stripped from production builds by the DEV guard.
+        const swatch = document.createElement('div');
+        swatch.style.cssText =
+          'position:fixed;right:16px;bottom:16px;z-index:99;width:160px;height:90px;' +
+          'background:#fff;color:#000;font:11px/1.4 monospace;display:flex;' +
+          'align-items:center;justify-content:center;text-align:center;';
+        swatch.textContent = 'reference white #FFFFFF — HDR highlights should look brighter';
+        document.body.append(swatch);
+      }
     } catch (error) {
       console.warn('WebGPU hero unavailable; retaining CSS fallback.', error);
       root.dataset.renderState = 'failed';

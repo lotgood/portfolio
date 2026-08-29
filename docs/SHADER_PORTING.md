@@ -20,6 +20,8 @@ struct HeroParams {
   aspect: f32,
   scroll: f32,
   quality: f32,
+  hdr_mode: f32,
+  headroom: f32,
   pointer: vec2f,
   viewport: vec2f,
 }
@@ -43,7 +45,7 @@ Preserve this contract while iterating so shader swaps do not require applicatio
 2. Export WGSL when possible; otherwise port the smallest self-contained fragment.
 3. Replace FragCoord globals with the `hero` fields above.
 4. Convert pixel coordinates with `uv`, `hero.viewport`, and `hero.aspect`.
-5. Keep color calculations unclipped internally, then use one explicit output transform.
+5. Keep color calculations unclipped internally, then use one explicit output transform. When `hero.hdr_mode > 0.5`, preserve values above 1.0 through a soft limit at `hero.headroom` instead of clamping to SDR; otherwise tone map to SDR as before.
 6. Paste the result into `src/shaders/hero.wgsl`.
 7. Run `pnpm check` before opening the browser.
 8. Verify low-quality and reduced-motion behavior before increasing detail.
@@ -59,6 +61,8 @@ Common substitutions:
 | mouse | `hero.pointer` in normalized 0–1 coordinates |
 | fragment pixel coordinate | `uv * hero.viewport` |
 | page scroll | `hero.scroll` in normalized 0–1 range |
+| HDR flag | `hero.hdr_mode` — `1.0` when the canvas presents extended-range (rgba16float + toneMapping `extended`), else `0.0` |
+| HDR headroom | `hero.headroom` — soft luminance ceiling in multiples of reference white; only meaningful when `hero.hdr_mode > 0.5` |
 
 ## Shader limits for the hero
 
