@@ -50,6 +50,12 @@ pnpm gpu:doctor
 - Visual design: `src/styles/global.css`
 - Shader: `src/shaders/hero.wgsl`
 
+## Deployment
+
+Live at **https://lotgood.github.io/portfolio/** via GitHub Pages (`.github/workflows/deploy.yml`: check → build → budget → deploy, with `SITE_URL`/`BASE_PATH` driving base-aware URLs).
+
+OpenAI Sites (chatgpt.site) was evaluated first as the primary target and ruled out for this repo: ChatGPT Sites builds and publishes sites only through ChatGPT conversation surfaces (`@Sites` in Work/Codex) and documents no path for uploading an externally built static bundle (see help.openai.com article 20001339, checked 2026-08-29). Re-hosting `dist/` there would mean re-authoring the site inside ChatGPT rather than deploying this build.
+
 ## Documentation
 
 - `docs/PROJECT_SPEC.md` — product scope and acceptance criteria
