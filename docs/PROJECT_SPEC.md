@@ -19,6 +19,7 @@ A compact personal portfolio that feels premium immediately, remains readable an
 - Native cross-document View Transitions where supported
 - CSS gradient fallback that is visually complete before the GPU starts
 - Lazy WebGPU hero with pointer/scroll response and conservative quality profiles
+- True extended-range HDR hero output on Chromium + HDR displays (capability-gated, with SDR tone-map and CSS fallbacks elsewhere)
 - Semantic structure, keyboard focus, skip navigation, and reduced-motion behavior
 - Build, type, shader, and bundle-budget validation
 
@@ -28,7 +29,7 @@ A compact personal portfolio that feels premium immediately, remains readable an
 - Three-dimensional scene graph
 - Multi-pass bloom, volumetric clouds, FFT ocean, or game-like controls
 - Background video in the critical path
-- Guaranteed HDR presentation
+- HDR presentation outside the guaranteed boundary (Chromium + HDR display); other environments intentionally receive the SDR/CSS fallback
 - Runtime framework islands
 
 ## Content model

@@ -1,10 +1,11 @@
 # lotgood — WebGPU Portfolio
 
-A static-first personal portfolio scaffold built for three priorities:
+lotgood's static-first personal portfolio, built for four priorities:
 
 1. **Beautiful without JavaScript**
 2. **Fast on ordinary phones and laptops**
 3. **Modern WebGPU/WGSL enhancement where it actually adds value**
+4. **True HDR hero output on Chromium + HDR displays**, with clean SDR/CSS fallbacks everywhere else
 
 The page renders as complete HTML/CSS first. The hero shader is lazy-loaded after the first paint and is skipped for reduced-motion, data-saver, unsupported, or constrained environments.
 
@@ -14,6 +15,7 @@ The page renders as complete HTML/CSS first. The hero shader is lazy-loaded afte
 - TypeScript
 - Native CSS, cross-document View Transitions, and optional scroll-driven animation
 - vgpu 0.3.1 + WGSL for one isolated fullscreen hero
+- Extended-range HDR canvas (`rgba16float` + `display-p3` + `toneMapping: extended`), capability-gated
 - No React, Three.js, Tailwind, GSAP, remote fonts, or runtime CMS
 
 ## Start
@@ -54,6 +56,6 @@ pnpm gpu:doctor
 - `docs/TECHNICAL_NOTES.md` — architecture, performance budgets, fallback matrix, HDR boundary
 - `docs/SHADER_PORTING.md` — FragCoord-to-WGSL workflow and licensing rules
 
-## Scaffold status
+## Status
 
-This archive is a **P0 scaffold**, not a finished public portfolio. It contains representative placeholder content, a working visual direction, and the guardrails needed to continue without turning the site into a heavy graphics demo.
+This is the live public portfolio for [lotgood](https://github.com/lotgood): a single AethelDesk case study, the HDR WebGPU hero, and the performance guardrails that keep it from becoming a heavy graphics demo.

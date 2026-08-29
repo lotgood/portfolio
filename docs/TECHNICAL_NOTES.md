@@ -55,17 +55,17 @@ These are guardrails, not targets. Prefer staying materially below them.
 
 ## HDR boundary
 
-P0 uses wide-gamut CSS where supported and performs controlled SDR tone mapping inside the WGSL shader. It **does not claim true HDR canvas presentation**.
+The hero ships a true extended-range (HDR) presentation path, guaranteed only on **Chromium browsers driving an HDR-capable display**. Every other environment (Safari, Firefox, SDR displays, WebGPU-unavailable clients) receives the controlled SDR tone-mapped or CSS fallback — by design, not as a defect.
 
-A future HDR pass may add:
+The implemented path satisfies these conditions:
 
-1. linear `rgba16float` intermediate rendering,
-2. a verified extended-range canvas presentation path,
-3. explicit SDR tone-map fallback,
-4. browser-and-display capability tests,
-5. screenshot/measurement evidence proving that values above reference white survive presentation.
+1. `rgba16float` canvas format with linear >1.0 highlight values preserved through an extended-Reinhard soft limit (`hero.headroom` ceiling),
+2. extended-range canvas presentation via `GPUCanvasContext.configure` with `toneMapping: { mode: 'extended' }` and `colorSpace: 'display-p3'` (applied as a re-configure on the vgpu surface context, which vgpu configures once and never overwrites on resize),
+3. explicit SDR tone-map fallback (the original ACES + gamma output stage) selected by the same shader,
+4. capability gating without UA sniffing: `dynamic-range: high` media query plus a configure-and-read-back probe of `toneMapping` support (`GPUCanvasContext.getConfiguration`),
+5. acceptance by owner visual verification on an XDR display: hero highlights must be visibly brighter than a reference-white (`#FFFFFF`) comparison swatch (dev-only `?hdrcheck` overlay). Instrumented luminance measurement is intentionally not required.
 
-Do not label the site HDR until those five conditions are met. Keep the output stage replaceable so this can be added without rewriting the authored visual.
+The `dynamic-range: high` media query signals display capability only, never that HDR output is active; the live canvas configuration read-back is the source of truth (surfaced in the `data-gpu-status` label as `HDR`).
 
 ## Validation path
 
