@@ -61,11 +61,11 @@ fn hdr_extend(color: vec3f, limit: f32) -> vec3f {
 @fragment
 fn fs_main(@location(0) uv: vec2f) -> @location(0) vec4f {
   let screen = (uv - 0.5) * vec2f(ambient.aspect, 1.0);
-  let t = ambient.time * 0.16;
+  let t = ambient.time * 0.05;
   // Scroll nudges the field forward. Deep travel per scroll unit makes the whole
   // volume churn while scrolling, which reads as motion sickness rather than
   // parallax, so the coupling stays small.
-  let travel = ambient.time * 0.10 + ambient.scroll * 0.85;
+  let travel = ambient.time * 0.030 + ambient.scroll * 0.28;
 
   let steps = select(8, select(12, 16, ambient.quality > 0.88), ambient.quality > 0.62);
 
@@ -81,8 +81,10 @@ fn fs_main(@location(0) uv: vec2f) -> @location(0) vec4f {
 
   // Per-pixel jitter on the march start. Without it, a 16-step march quantises
   // into visible shells that crawl across the screen as the field moves.
-  let jitter = hash21(floor(uv * ambient.viewport) + floor(ambient.time * 60.0) * 0.017);
-  var z = 0.55 + jitter * 0.045;
+  // Fixed per-pixel dither, not re-rolled each frame. Animated noise on a slow
+  // field is what reads as fizzing rather than as motion.
+  let jitter = hash21(floor(uv * ambient.viewport));
+  var z = 0.55 + jitter * 0.018;
   // Brightness and colour are accumulated separately. Accumulating tinted light
   // directly averages hue along the ray, so every pixel converges on the palette's
   // base colour and one hue ends up owning every highlight. Instead the march
@@ -115,7 +117,7 @@ fn fs_main(@location(0) uv: vec2f) -> @location(0) vec4f {
     // Brightness is relative to each filament's own core, not to the screen: the
     // falloff is sharpened so a strand is dark at its edges and climbs steeply
     // toward its centre. Crossings then add core to core and pull far ahead.
-    let contribution = pow(1.0 / sheet, 1.45);
+    let contribution = pow(1.0 / sheet, 1.32);
     density += contribution;
     // Low-frequency hue coordinate: depth plus the folded position, kept slow so
     // neighbouring pixels stay in the same colour family instead of speckling.
@@ -123,7 +125,7 @@ fn fs_main(@location(0) uv: vec2f) -> @location(0) vec4f {
   }
 
   let hue = (hue_weighted / max(density, 0.0001)) * 2.4 + screen.x * 0.78 + screen.y * 0.30 + t * 0.06;
-  var energy = ramp(hue) * density * 0.0010;
+  var energy = ramp(hue) * density * 0.0026;
   energy *= 1.0 + pointer_falloff * 1.35;
 
   // Body copy sits in the centred content column, so damp the field there. This
@@ -134,11 +136,11 @@ fn fs_main(@location(0) uv: vec2f) -> @location(0) vec4f {
   let column = 1.0 - 0.80 * (1.0 - smoothstep(0.10, 1.05, abs(screen.x)));
   energy *= mix(0.42, 1.0, column);
 
-  // Only a gentle frame vignette. Pooling brightness at the screen centre put the
-  // hottest part of the field directly behind the headline; the dark-to-bright
-  // gradient belongs to each filament instead.
-  let vignette = smoothstep(1.25, 0.35, length(screen * vec2f(0.85, 1.0)));
-  energy *= 0.55 + vignette * 0.55;
+  // Edges go fully dark and the field lifts only gradually inward. This is a
+  // frame, not a spotlight: driving the centre hard puts the brightest part of
+  // the field behind the headline, which is what the earlier pooling did wrong.
+  let vignette = smoothstep(1.05, 0.05, length(screen * vec2f(0.85, 1.0)));
+  energy *= 0.015 + pow(vignette, 1.35) * 0.60;
 
   // `base` is what an SDR display can show, deliberately tone mapped well down so
   // the field stays a background. `spill` is the range that compression discards,
@@ -166,8 +168,8 @@ fn fs_main(@location(0) uv: vec2f) -> @location(0) vec4f {
   let spill = (energy / peak) * max(overlap - 7.0, 0.0) * 1.5;
 
   let pixel = floor(uv * ambient.viewport);
-  let grain = hash21(pixel + floor(ambient.time * 20.0)) - 0.5;
-  let dithered = max(base + grain * 0.004, vec3f(0.0));
+  let grain = hash21(pixel + floor(ambient.time * 5.0)) - 0.5;
+  let dithered = max(base + grain * 0.0016, vec3f(0.0));
 
   if (ambient.hdr_mode > 0.5) {
     let limit = max(ambient.headroom, 1.2);
