@@ -34,8 +34,13 @@ const canonical = Astro.site ? new URL(Astro.url.pathname, Astro.site) : undefin
   </head>
   <body>
     <a class="skip-link" href="#main-content">Skip to content</a>
-    <div class="ambient ambient__light" aria-hidden="true"></div>
-    <div class="ambient ambient__grain" aria-hidden="true"></div>
+    <div class="ambient" aria-hidden="true">
+      <div class="ambient__drift">
+        <div class="ambient__field ambient__field--a"></div>
+        <div class="ambient__field ambient__field--b"></div>
+      </div>
+      <div class="ambient__grain"></div>
+    </div>
     <slot />
   </body>
 </html>

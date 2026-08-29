@@ -50,27 +50,44 @@ body {
 }
 
 /*
- * Ambient layers for everything below the hero.
- * The hero is opaque and isolated, so both layers are painted behind it and only
- * become visible once it scrolls away - that is what removes the hard texture
- * seam at the hero's bottom edge without touching the hero itself.
- * Character is deliberately the opposite of the hero: wide, soft and slow,
- * instead of sharp hot filaments.
+ * One continuous ambient field for the whole document.
+ * It is painted behind everything, and the hero's visual is masked to fade out
+ * at its bottom edge, so the field bleeds through from inside the hero instead
+ * of switching on at its boundary - otherwise the point where it appears reads
+ * as a horizontal rule.
+ * Character is deliberately the opposite of the hero: wide, soft and slow-moving
+ * rather than sharp hot filaments.
  */
 .ambient {
   position: fixed;
   inset: 0;
   z-index: -1;
+  overflow: hidden;
   pointer-events: none;
 }
 
-.ambient__light {
-  inset: -22vh -14vw;
+.ambient__drift,
+.ambient__grain {
+  position: absolute;
+  inset: 0;
+}
+
+.ambient__field {
+  position: absolute;
+  inset: -30%;
+  will-change: transform, opacity;
+}
+
+.ambient__field--a {
   background:
-    radial-gradient(38% 30% at 24% 22%, rgb(88 108 214 / 0.15), transparent 70%),
-    radial-gradient(34% 28% at 78% 58%, rgb(142 98 205 / 0.12), transparent 68%),
-    radial-gradient(30% 26% at 46% 94%, rgb(78 158 196 / 0.10), transparent 72%);
-  will-change: transform;
+    radial-gradient(34% 30% at 26% 24%, rgb(88 108 214 / 0.17), transparent 70%),
+    radial-gradient(30% 26% at 74% 62%, rgb(142 98 205 / 0.13), transparent 68%);
+}
+
+.ambient__field--b {
+  background:
+    radial-gradient(32% 27% at 62% 18%, rgb(78 158 196 / 0.12), transparent 70%),
+    radial-gradient(28% 24% at 34% 82%, rgb(120 92 208 / 0.12), transparent 72%);
 }
 
 .ambient__grain {
@@ -79,11 +96,59 @@ body {
 }
 
 @supports (color: color(display-p3 1 1 1)) {
-  .ambient__light {
+  .ambient__field--a {
     background:
-      radial-gradient(38% 30% at 24% 22%, color(display-p3 0.34 0.42 0.86 / 0.17), transparent 70%),
-      radial-gradient(34% 28% at 78% 58%, color(display-p3 0.55 0.38 0.82 / 0.13), transparent 68%),
-      radial-gradient(30% 26% at 46% 94%, color(display-p3 0.3 0.62 0.78 / 0.11), transparent 72%);
+      radial-gradient(34% 30% at 26% 24%, color(display-p3 0.34 0.42 0.86 / 0.19), transparent 70%),
+      radial-gradient(30% 26% at 74% 62%, color(display-p3 0.55 0.38 0.82 / 0.15), transparent 68%);
+  }
+
+  .ambient__field--b {
+    background:
+      radial-gradient(32% 27% at 62% 18%, color(display-p3 0.3 0.62 0.78 / 0.14), transparent 70%),
+      radial-gradient(28% 24% at 34% 82%, color(display-p3 0.47 0.36 0.83 / 0.14), transparent 72%);
+  }
+}
+
+/*
+ * Continuous counter-motion: two fields on different long periods cross and
+ * separate, so the wash keeps morphing instead of sitting still. Transform and
+ * opacity only, so it stays on the compositor.
+ */
+.ambient__field--a {
+  animation: ambient-a 46s ease-in-out infinite alternate;
+}
+
+.ambient__field--b {
+  animation: ambient-b 67s ease-in-out infinite alternate;
+}
+
+@keyframes ambient-a {
+  from {
+    transform: translate3d(-4%, -3%, 0) scale(1.02);
+    opacity: 0.85;
+  }
+  50% {
+    transform: translate3d(5%, 4%, 0) scale(1.16);
+    opacity: 1;
+  }
+  to {
+    transform: translate3d(-2%, 6%, 0) scale(1.06);
+    opacity: 0.8;
+  }
+}
+
+@keyframes ambient-b {
+  from {
+    transform: translate3d(4%, 5%, 0) scale(1.1);
+    opacity: 0.65;
+  }
+  50% {
+    transform: translate3d(-5%, -4%, 0) scale(1);
+    opacity: 1;
+  }
+  to {
+    transform: translate3d(3%, -6%, 0) scale(1.12);
+    opacity: 0.7;
   }
 }
 
@@ -240,7 +305,6 @@ h3 {
   grid-template-rows: auto 1fr auto;
   isolation: isolate;
   overflow: clip;
-  background: #07080b;
 }
 
 .hero__visual,
@@ -256,6 +320,14 @@ h3 {
   z-index: -1;
   overflow: hidden;
   background: #07080b;
+  /*
+   * Dissolve the hero's visual into the document ambient field instead of
+   * ending it on a straight edge. Everything inside (fallback, canvas, veil,
+   * grain) fades together, so there is no boundary where one system stops and
+   * the other starts.
+   */
+  -webkit-mask-image: linear-gradient(to bottom, #000 56%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 56%, transparent 100%);
 }
 
 .hero__fallback {
@@ -311,8 +383,8 @@ h3 {
       to bottom,
       rgb(4 5 8 / 0.08) 0%,
       rgb(4 5 8 / 0.14) 52%,
-      rgb(7 8 11 / 0.68) 82%,
-      #08090c 97%
+      rgb(7 8 11 / 0.5) 84%,
+      rgb(8 9 12 / 0.66) 100%
     ),
     radial-gradient(circle at 50% 42%, transparent 25%, rgb(0 0 0 / 0.23) 100%);
 }
@@ -970,14 +1042,17 @@ h3 {
     display: none;
   }
 
-  .ambient__light,
+  .ambient__drift,
+  .ambient__field,
   .section::before {
     animation: none !important;
     animation-timeline: none !important;
   }
 
-  .ambient__light {
+  .ambient__drift,
+  .ambient__field {
     transform: none !important;
+    opacity: 1;
   }
 
   .section::before {
@@ -1072,8 +1147,8 @@ h3 {
 }
 
 @supports (animation-timeline: scroll()) {
-  /* Slow parallax drift of the ambient light across the whole document. */
-  .ambient__light {
+  /* Scroll parallax, layered on top of the fields' own continuous motion. */
+  .ambient__drift {
     animation: ambient-drift linear both;
     animation-timeline: scroll(root block);
   }
