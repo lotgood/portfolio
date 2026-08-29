@@ -66,7 +66,3 @@ export const projects: readonly Project[] = [
     accentAlt: '#e8c07b'
   }
 ];
-
-export function getProject(slug: string) {
-  return projects.find((project) => project.slug === slug);
-}
